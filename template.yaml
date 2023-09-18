@@ -1,0 +1,371 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  practice-aws-sam-lambda-app
+
+  Practice SAM Template for practice-aws-sam-lambda-app
+  
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 180
+    Tracing: Active
+    Runtime: nodejs16.x
+    MemorySize: 256
+    Architectures:
+      - x86_64
+    # Layers:
+    #   # Our own layer that we are going to build
+    #   - !Ref RuntimeDependenciesLayer
+    Environment:
+      Variables:
+        ENABLE_HTTPS: false
+        ORIGINAL_HOST: localhost
+        ORIGINAL_PORT: 9100
+        DefaultEnableApp: !Ref DefaultEnableApp
+  Api:
+    TracingEnabled: True
+
+Parameters:
+  SAMPracticeAppBucketName: #sam-practice-app-storage
+    Type: String
+  S3ToSNSBucketName: #practice-sam-app-s3-to-sns
+    Type: String
+  S3ToSNSTopicName: #practice-sam-app-s3-to-sns-topic
+    Type: String
+  DefaultEnableApp:
+    Type: String
+    Description: Sample environment variable
+    Default: 'True'
+
+Resources:
+  # PracticeSAMLambdaRole:
+  #   Type: AWS::IAM::Role
+  #   Properties:
+  #     ManagedPolicyArns:
+  #       - 'arn:aws:iam::aws:policy/service-role/AWSLambdaRole'
+  #       - 'arn:aws:iam::aws:policy/AWSLambdaExecute'
+  #       - 'arn:aws:iam::aws:policy/AmazonSQSFullAccess'
+  #     AssumeRolePolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             Service:
+  #               - 'lambda.amazonaws.com'
+  #           Action:
+  #             - 'sts:AssumeRole'
+  HelloFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      Handler: src/handlers/hello.handler
+      Events:
+        Hello:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /hello
+            Method: get
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints: 
+          - src/handlers/hello.ts
+  GetProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/getProducts.handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /products
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/getProducts.ts
+  CreateProductFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      Handler: src/handlers/createProduct.handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /product
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/createProduct.ts
+  UpdateProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/updateProduct.handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /product/{id}
+            Method: PUT
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/updateProduct.ts
+
+  DeleteProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/deleteProduct.handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /product/{id}
+            Method: DELETE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/deleteProduct.ts
+  TriggerCreateProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/triggerCreateProduct.handler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/triggerCreateProduct.ts
+  HandleProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/handleProduct.handler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/handleProduct.ts
+  CreateEventInvokeFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      Handler: src/handlers/createEventInvokeProduct.handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /product/create-event-invoke
+            Method: POST
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref HandleProductFunction
+        - SQSPollerPolicy:
+            QueueName:
+              !GetAtt SQSProductQueue.QueueName
+      # Role: !GetAtt PracticeSAMLambdaRole.Arn
+      EventInvokeConfig:
+        DestinationConfig:
+          OnSuccess:
+            Type: Lambda
+            Destination: !GetAtt HandleProductFunction.Arn  # Arn of a Lambda function declared in the template file.
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt SQSProductQueue.Arn  # Arn of an SNS topic declared in the template file
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/createEventInvokeProduct.ts
+  # EventInvokeConfig:
+  #   Type: AWS::Lambda::EventInvokeConfig
+  #   Properties:
+  #     FunctionName: !Ref CreateProductEventInvokeFunction
+  #     Qualifier: "$LATEST"
+  #     MaximumEventAgeInSeconds: 60
+  #     MaximumRetryAttempts: 0
+  #     DestinationConfig:
+  #       # OnSuccess:
+  #       #   Destination: arn:aws:sqs:us-east-2:786326606288:sqs-practice-sam-lambda-product  # Arn of an SNS topic declared in the template file
+  #       OnFailure:
+  #         Destination: !GetAtt HandleProductFunction.Arn  # Arn of a Lambda function declared in the template file. 
+  SQSReceiverFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 30
+      Handler: src/handlers/sqsReceiver.handler
+      Events:
+        ProductSQSQueue:
+          Type: SQS
+          Properties:
+            Enabled: true
+            Queue: !GetAtt SQSProductQueue.Arn
+            BatchSize: 10
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/sqsReceiver.ts
+
+  S3UploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 30
+      Handler: src/handlers/handleS3Upload.handler
+      Events:
+        S3UploadEvent:
+          Type: S3
+          Properties:
+            Bucket: !Ref SAMPracticeAppBucket
+            Events: s3:ObjectCreated:*
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/handleS3Upload.ts
+  ######## Lambda timeout #######
+  LambdaTimeoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 3
+      Handler: src/handlers/lambdaTimeout.handler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/lambdaTimeout.ts
+  ######## Lambda timeout #######
+  LambdaEnvVarFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/lambdaEnvVar.handler
+      Environment:
+        Variables:
+          EXTRA_PORT: 9000
+          EXTRA_HOST: localhost
+          EXTRA_LINK: test.com
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/lambdaEnvVar.ts
+
+  # RuntimeDependenciesLayer:
+  #   Type: AWS::Serverless::LayerVersion
+  #   Metadata:
+  #     BuildMethod: makefile
+  #   Properties:
+  #     Description: Runtime dependencies for Lambdas
+  #     ContentUri: ./
+  #     CompatibleRuntimes:
+  #       - nodejs16.x
+  #     RetentionPolicy: Retain
+
+  #################### SQS #######################
+  # Allow Lambda to send messages to SQS
+  LambdaToQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: SQS:SendMessage
+          Resource: !GetAtt SQSProductQueue.Arn
+      Queues:
+        - !Ref SQSProductQueue
+
+  SQSProductQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: sqs-practice-sam-lambda-product
+
+  #################### S3 #######################
+  SAMPracticeAppBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref SAMPracticeAppBucketName
+
+#################### S3 to SNS Topic Permission #######################
+  S3ToSNSHandleEventsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/S3ToSnsHandleEvents.handler
+      Events:
+        Topic:
+          Type: SNS
+          Properties:
+            Topic: !Ref S3ToSNSEvents
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/S3ToSnsHandleEvents.ts
+
+  S3ToSNSBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3ToSNSBucketName
+      NotificationConfiguration:
+        TopicConfigurations:
+          - Topic: !Ref S3ToSNSEvents
+            Event: s3:ObjectCreated:*
+          - Topic: !Ref S3ToSNSEvents
+            Event: s3:ObjectRemoved:*
+    DependsOn:
+      - S3BucketToSNSPermission
+
+  S3ToSNSEvents:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Ref S3ToSNSTopicName
+
+  S3BucketToSNSPermission:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref S3ToSNSEvents
+      PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: s3.amazonaws.com
+              Action: sns:Publish
+              Resource: !Ref S3ToSNSEvents
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Sub arn:${AWS::Partition}:s3:::practice-sam-app-s3-to-sns
+  
+  S3ToSNSFunctionPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref S3ToSNSHandleEventsFunction
+      Principal: sns.amazonaws.com
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  APIEndpoint:
+    Description: "API Gateway endpoint URL for Prod stage"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  SAMPracticeAppBucketName:
+    Value: !Ref SAMPracticeAppBucketName
+    Description: S3 Bucket for object storage
+  SQSProductQueue:
+    Description: "SQS Queue for practice"
+    Value: !Ref SQSProductQueue
+  # HelloWorldFunction:
+  #   Description: "Hello World Lambda Function ARN"
+  #   Value: !GetAtt HelloWorldFunction.Arn
+  # HelloWorldFunctionIamRole:
+  #   Description: "Implicit IAM Role created for Hello World function"
+  #   Value: !GetAtt HelloWorldFunctionRole.Arn

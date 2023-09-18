@@ -1,0 +1,13 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "practice-aws-sam-lambda-app-v1"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1as74l9r4xho1"
+s3_prefix = "practice-aws-sam-lambda-app-v1"
+region = "us-east-2"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+disable_rollback = true
+image_repositories = []
+parameter_overrides = "SAMPracticeAppBucketName=\"sam-practice-app-storage\" S3ToSNSBucketName=\"practice-sam-app-s3-to-sns\" S3ToSNSTopicName=\"practice-sam-app-s3-to-sns-topic\" DefaultEnableApp=\"True\""
