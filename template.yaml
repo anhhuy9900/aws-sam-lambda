@@ -19,6 +19,8 @@ Globals:
     #   - !Ref RuntimeDependenciesLayer
     Environment:
       Variables:
+        AWS_REGION_VALUE: us-east-2
+        AWS_ID: 786326606288
         ENABLE_HTTPS: false
         ORIGINAL_HOST: localhost
         ORIGINAL_PORT: 9100
@@ -33,32 +35,74 @@ Parameters:
     Type: String
   S3ToSNSTopicName: #practice-sam-app-s3-to-sns-topic
     Type: String
+  SamAppSnsTopicName: #practice-sam-app-sns
+    Type: String
+  SamAppSQSQueueName: #practice-sam-app-sqs
+    Type: String
   DefaultEnableApp:
     Type: String
     Description: Sample environment variable
     Default: 'True'
 
 Resources:
-  # PracticeSAMLambdaRole:
-  #   Type: AWS::IAM::Role
-  #   Properties:
-  #     ManagedPolicyArns:
-  #       - 'arn:aws:iam::aws:policy/service-role/AWSLambdaRole'
-  #       - 'arn:aws:iam::aws:policy/AWSLambdaExecute'
-  #       - 'arn:aws:iam::aws:policy/AmazonSQSFullAccess'
-  #     AssumeRolePolicyDocument:
-  #       Version: '2012-10-17'
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             Service:
-  #               - 'lambda.amazonaws.com'
-  #           Action:
-  #             - 'sts:AssumeRole'
+  SAMAppRoleCreationFunction:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: SAMAppRoleCreationFunction
+      Description: !Sub "Used by Role Creation Service. Created by CloudFormation ${AWS::StackId}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "lambda.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: SAMAppRoleLambdaPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "sts:AssumeRole"
+                Resource: !Sub "arn:${AWS::Partition}:iam::*:role/SAMAppRoleCreationFunction"
+        - PolicyName: SAMAppRoleS3Policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:ListBucket"
+                  - "s3:GetObject"
+                  - "s3:GetObjectAcl"
+                  - "s3:PutObject"
+                  - "s3:PutObjectAcl"
+                Resource: !Sub "arn:${AWS::Partition}:iam::*:role/SAMAppRoleCreationFunction"
+        - PolicyName: SAMAppRoleSQSPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "sqs:*"
+                Resource: "*"
+        - PolicyName: SAMAppRoleSNSPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "sns:*"
+                Resource: "*"
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AWSXrayWriteOnlyAccess"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole"
   HelloFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
       Handler: src/handlers/hello.handler
+      Role: !GetAtt SAMAppRoleCreationFunction.Arn
       Events:
         Hello:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
@@ -350,6 +394,98 @@ Resources:
       FunctionName: !Ref S3ToSNSHandleEventsFunction
       Principal: sns.amazonaws.com
 
+  #################### pattern 1 #######################
+  SamAppPattern1ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/pattern-1/lambda-api-gateway.handler
+      # Role: !GetAtt SAMAppRoleCreationFunction.Arn
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref SamAppSnsTopic  # Using !Ref
+      Policies:
+        - Statement:
+          - Effect: Allow
+            Action:
+            - sns:Publish
+            Resource: "*"
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /pattern-1
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/pattern-1/lambda-api-gateway.ts
+  SamAppPattern1SqsReceiver:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 30
+      Handler: src/handlers/pattern-1/sqsReceiver.handler
+      Role: !GetAtt SAMAppRoleCreationFunction.Arn
+      Events:
+        SamAppSQSQueueEvent:
+          Type: SQS
+          Properties:
+            Enabled: true
+            Queue: !GetAtt SamAppSQSQueue.Arn
+            BatchSize: 10
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/pattern-1/sqsReceiver.ts
+  SamAppPattern1SnsToLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/pattern-1/sns-to-lambda.handler
+      Role: !GetAtt SAMAppRoleCreationFunction.Arn
+      Events:
+        SamAppSNSTopicEvent:
+          Type: SNS
+          Properties:
+            Topic: !Ref SamAppSnsTopic
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - src/handlers/pattern-1/sns-to-lambda.ts
+  SamAppSnsToLambda:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      Endpoint: !GetAtt SamAppPattern1SnsToLambdaFunction.Arn
+      TopicArn: !Ref SamAppSnsTopic
+  SamAppSnsToSqs:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      Endpoint: !GetAtt SamAppSQSQueue.Arn
+      TopicArn: !Ref SamAppSnsTopic
+  SamAppSnsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Ref SamAppSnsTopicName
+  SamAppSQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref SamAppSQSQueueName
+  SamAppSQSQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal: "*"
+          Action: 
+            - SQS:SendMessage
+            - SQS:ReceiveMessage
+          Resource: !GetAtt SamAppSQSQueue.Arn
+      Queues:
+        - !Ref SamAppSQSQueue
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
