@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-lambda-app-pattern-1
+
+  This is pattern 2 used to show case integration Lambda
+
+Globals:
+  Function:
+    Timeout: 180
+    Tracing: Active
+    Runtime: nodejs16.x
+    MemorySize: 256
+    Architectures:
+      - x86_64
+
+Resources:
+  SamAppPatternTwoApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/lambda.handler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/lambda.ts
+

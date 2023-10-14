@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-lambda-app-pattern-2
+
+  This is pattern 1 used to show case integration between API gateway, SNS, SQS, Lambda
+
+Globals:
+  Function:
+    Timeout: 180
+    Tracing: Active
+    Runtime: nodejs16.x
+    MemorySize: 256
+    Architectures:
+      - x86_64 
+
+Parameters:
+  SamAppPattern1SnsTopicName: #sam-app-pattern-1-sns
+    Type: String
+  SamAppPattern1SqsQueueName: #sam-app-pattern-1-sqs
+    Type: String
+  SAMAppRoleCreationFunction:
+    Type: String
+
+Resources:
+  #################### pattern 1 #######################
+  SamAppPattern1ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/lambda-api-gateway.handler
+      # Role: !GetAtt SAMAppRoleCreationFunction.Arn
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref SamAppSnsTopic  # Using !Ref
+      Policies:
+        - Statement:
+          - Effect: Allow
+            Action:
+            - sns:Publish
+            Resource: "*"
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /pattern-1
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/lambda-api-gateway.ts
+  SamAppPattern1SqsReceiver:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 30
+      Handler: handlers/sqsReceiver.handler
+      Role: !Ref SAMAppRoleCreationFunction
+      Events:
+        SamAppSQSQueueEvent:
+          Type: SQS
+          Properties:
+            Enabled: true
+            Queue: !GetAtt SamAppSQSQueue.Arn
+            BatchSize: 10
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/sqsReceiver.ts
+  SamAppPattern1SnsToLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/sns-to-lambda.handler
+      Role: !Ref SAMAppRoleCreationFunction
+      Events:
+        SamAppSNSTopicEvent:
+          Type: SNS
+          Properties:
+            Topic: !Ref SamAppSnsTopic
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/sns-to-lambda.ts
+  SamAppSnsToLambda:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      Endpoint: !GetAtt SamAppPattern1SnsToLambdaFunction.Arn
+      TopicArn: !Ref SamAppSnsTopic
+  SamAppSnsToSqs:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      Endpoint: !GetAtt SamAppSQSQueue.Arn
+      TopicArn: !Ref SamAppSnsTopic
+  SamAppSnsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Ref SamAppPattern1SnsTopicName
+  SamAppSQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref SamAppPattern1SqsQueueName
+  SamAppSQSQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal: "*"
+          Action: 
+            - SQS:SendMessage
+            - SQS:ReceiveMessage
+          Resource: !GetAtt SamAppSQSQueue.Arn
+      Queues:
+        - !Ref SamAppSQSQueue

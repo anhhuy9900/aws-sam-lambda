@@ -35,14 +35,14 @@ Parameters:
     Type: String
   S3ToSNSTopicName: #practice-sam-app-s3-to-sns-topic
     Type: String
-  SamAppSnsTopicName: #practice-sam-app-sns
-    Type: String
-  SamAppSQSQueueName: #practice-sam-app-sqs
-    Type: String
   DefaultEnableApp:
     Type: String
     Description: Sample environment variable
     Default: 'True'
+  SamAppPattern1SnsTopicName: #practice-sam-app-sns
+    Type: String
+  SamAppPattern1SqsQueueName: #practice-sam-app-sqs
+    Type: String
 
 Resources:
   SAMAppRoleCreationFunction:
@@ -393,99 +393,22 @@ Resources:
       Action: 'lambda:InvokeFunction'
       FunctionName: !Ref S3ToSNSHandleEventsFunction
       Principal: sns.amazonaws.com
-
+  
   #################### pattern 1 #######################
-  SamAppPattern1ApiFunction:
-    Type: AWS::Serverless::Function
+  SamAppPattern1:
+    Type: AWS::Serverless::Application
     Properties:
-      Handler: src/handlers/pattern-1/lambda-api-gateway.handler
-      # Role: !GetAtt SAMAppRoleCreationFunction.Arn
-      Environment:
-        Variables:
-          SNS_TOPIC_ARN: !Ref SamAppSnsTopic  # Using !Ref
-      Policies:
-        - Statement:
-          - Effect: Allow
-            Action:
-            - sns:Publish
-            Resource: "*"
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            Path: /pattern-1
-            Method: POST
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        EntryPoints: 
-          - src/handlers/pattern-1/lambda-api-gateway.ts
-  SamAppPattern1SqsReceiver:
-    Type: AWS::Serverless::Function
+      Location: src/pattern-1/template.yaml
+      Parameters:
+        SAMAppRoleCreationFunction: !GetAtt SAMAppRoleCreationFunction.Arn
+        SamAppPattern1SnsTopicName: !Ref SamAppPattern1SnsTopicName
+        SamAppPattern1SqsQueueName: !Ref SamAppPattern1SqsQueueName
+   #################### pattern 2 #######################
+  SamAppPattern2:
+    Type: AWS::Serverless::Application
     Properties:
-      Timeout: 30
-      Handler: src/handlers/pattern-1/sqsReceiver.handler
-      Role: !GetAtt SAMAppRoleCreationFunction.Arn
-      Events:
-        SamAppSQSQueueEvent:
-          Type: SQS
-          Properties:
-            Enabled: true
-            Queue: !GetAtt SamAppSQSQueue.Arn
-            BatchSize: 10
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        EntryPoints: 
-          - src/handlers/pattern-1/sqsReceiver.ts
-  SamAppPattern1SnsToLambdaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: src/handlers/pattern-1/sns-to-lambda.handler
-      Role: !GetAtt SAMAppRoleCreationFunction.Arn
-      Events:
-        SamAppSNSTopicEvent:
-          Type: SNS
-          Properties:
-            Topic: !Ref SamAppSnsTopic
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        EntryPoints: 
-          - src/handlers/pattern-1/sns-to-lambda.ts
-  SamAppSnsToLambda:
-    Type: AWS::SNS::Subscription
-    Properties:
-      Protocol: lambda
-      Endpoint: !GetAtt SamAppPattern1SnsToLambdaFunction.Arn
-      TopicArn: !Ref SamAppSnsTopic
-  SamAppSnsToSqs:
-    Type: AWS::SNS::Subscription
-    Properties:
-      Protocol: sqs
-      Endpoint: !GetAtt SamAppSQSQueue.Arn
-      TopicArn: !Ref SamAppSnsTopic
-  SamAppSnsTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: !Ref SamAppSnsTopicName
-  SamAppSQSQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: !Ref SamAppSQSQueueName
-  SamAppSQSQueuePolicy:
-    Type: AWS::SQS::QueuePolicy
-    Properties:
-      PolicyDocument:
-        Statement:
-        - Effect: Allow
-          Principal: "*"
-          Action: 
-            - SQS:SendMessage
-            - SQS:ReceiveMessage
-          Resource: !GetAtt SamAppSQSQueue.Arn
-      Queues:
-        - !Ref SamAppSQSQueue
+      Location: src/pattern-2/template.yaml
+
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
@@ -499,9 +422,6 @@ Outputs:
   SQSProductQueue:
     Description: "SQS Queue for practice"
     Value: !Ref SQSProductQueue
-  # HelloWorldFunction:
-  #   Description: "Hello World Lambda Function ARN"
-  #   Value: !GetAtt HelloWorldFunction.Arn
-  # HelloWorldFunctionIamRole:
-  #   Description: "Implicit IAM Role created for Hello World function"
-  #   Value: !GetAtt HelloWorldFunctionRole.Arn
+  # Pattern1APIEndpoint:
+  #   Description: "API Gateway endpoint URL for Pattern-1"
+  #   Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/pattern-1"
