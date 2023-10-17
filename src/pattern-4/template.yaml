@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-lambda-app-pattern-4
+
+  This is pattern used to create an API with metrics, alerts, traces, logs, and dashboard
+
+Globals:
+  Function:
+    Timeout: 180
+    Tracing: Active
+    Runtime: nodejs16.x
+    MemorySize: 256
+    Architectures:
+      - x86_64
+
+Resources:
+  # Lambda function
+  SamAppPattern4Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/lambda.handler
+      Description: Sample handler for all API Gateway to Lambda with observability
+      Environment:
+        Variables:
+          AWS_EMF_NAMESPACE: !Sub ${AWS::StackName}
+      Events:
+        AllEvents:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SamAppPattern4HttpApi
+            Path: /
+            Method: GET 
+      Tags:
+        Stack: !Sub "${AWS::StackName}-Function"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - handlers/lambda.ts
+
+  # Override default Lambda logs group to add retention period
+  SamAppPattern4FunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${SamAppPattern4Function}"
+      RetentionInDays: 30
+
+  # API Gateway endpoint
+  SamAppPattern4HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      FailOnWarnings: True
+      AccessLogSettings:
+        DestinationArn: !GetAtt SamAppPattern4ApiAccessLogs.Arn
+        Format: '{ "requestId":"$context.requestId", "ip": "$context.identity.sourceIp", "requestTime":"$context.requestTime", "httpMethod":"$context.httpMethod","routeKey":"$context.routeKey", "status":"$context.status","protocol":"$context.protocol", "integrationStatus": $context.integrationStatus, "integrationLatency": $context.integrationLatency, "responseLength":"$context.responseLength" }'
+      Tags:
+        Name: !Sub "${AWS::StackName}-API"
+        Stack: !Sub "${AWS::StackName}"
+
+  # API Gateway access logs group with retention period
+  SamAppPattern4ApiAccessLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${AWS::StackName}/SamAppPattern4-ApiAccessLogs"
+      RetentionInDays: 30
+
+Outputs:
+  SamAppPattern4AppApiEndpoint:
+    Description: API Endpoint
+    Value: !Sub "https://${SamAppPattern4HttpApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"

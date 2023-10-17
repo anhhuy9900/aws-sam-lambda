@@ -1,7 +1,7 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  sam-lambda-app-pattern-1
+  sam-lambda-app-pattern-2
 
   This is pattern 2 used to show case integration Lambda
 
@@ -14,14 +14,70 @@ Globals:
     Architectures:
       - x86_64
 
+Parameters:
+  CognitoUserPoolArn:
+    Description: The ARN of cognito user pool
+    Type: String
+
 Resources:
-  SamAppPatternTwoApiFunction:
+  # REST API
+  SamAppPattern2AppApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: sam-app-pattern2-cognito-rest-api
+      Description: Cognito User Pools Authorizer REST API
+
+  SamAppPattern2Function:
     Type: AWS::Serverless::Function
     Properties:
       Handler: handlers/lambda.handler
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        EntryPoints: 
+        EntryPoints:
           - handlers/lambda.ts
 
+  SamAppPattern2AuthorizersCognitoUserPools:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: SamAppPattern2CognitoAuthorizer
+      RestApiId: !Ref SamAppPattern2AppApi
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.authorizationToken
+      ProviderARNs:
+        - !Ref CognitoUserPoolArn
+
+  # GET Method with Cognito User Pools Authorizer enabled
+  SamAppPattern2MethodGet:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref SamAppPattern2AppApi
+      ResourceId: !GetAtt SamAppPattern2AppApi.RootResourceId
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref SamAppPattern2AuthorizersCognitoUserPools
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Join ['', ['arn:aws:apigateway:', !Ref AWS::Region, ':lambda:path/2015-03-31/functions/', !GetAtt SamAppPattern2Function.Arn, '/invocations']]
+
+  # Permission to allow Lambda invocation from API Gateway
+  SamAppPattern2ppFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SamAppPattern2Function
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SamAppPattern2AppApi}/*/GET/
+
+  Deployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - SamAppPattern2MethodGet
+    Properties:
+      RestApiId: !Ref SamAppPattern2AppApi
+
+Outputs:
+  SamAppPattern2AppApiEndpoint:
+    Description: API Endpoint
+    Value: !Sub "https://${SamAppPattern2AppApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"

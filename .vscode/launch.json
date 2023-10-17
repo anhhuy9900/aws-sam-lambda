@@ -3,6 +3,20 @@
         {
             "type": "aws-sam",
             "request": "direct-invoke",
+            "name": "pattern-3:TokenAuthorizerFunction",
+            "invokeTarget": {
+                "target": "template",
+                "templatePath": "${workspaceFolder}/src/pattern-3/template.yaml",
+                "logicalId": "TokenAuthorizerFunction"
+            },
+            "lambda": {
+                "payload": {},
+                "environmentVariables": {}
+            }
+        },
+        {
+            "type": "aws-sam",
+            "request": "direct-invoke",
             "name": "API aws-sam-lambda:HelloFunction",
             "invokeTarget": {
                 "target": "api",

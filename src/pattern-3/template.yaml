@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-lambda-app-pattern-3
+
+  This is pattern used to create a REST API Gateway with a Lambda Token Authorizer for access control
+
+Globals:
+  Function:
+    Timeout: 180
+    Tracing: Active
+    Runtime: nodejs16.x
+    MemorySize: 256
+    Architectures:
+      - x86_64
+
+Resources:
+  # REST API
+  SamAppPattern3AppApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: sam-app-pattern3-api-lambda-authorizer
+      Description: Pattern 3 Lambda Token Authorizer REST API
+
+  # GET Method with Cognito User Pools Authorizer enabled
+  SamAppPattern3MethodGet:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref SamAppPattern3AppApi
+      ResourceId: !GetAtt SamAppPattern3AppApi.RootResourceId
+      HttpMethod: GET
+      AuthorizationType: CUSTOM
+      AuthorizerId: !Ref SamAppPattern3AuthorizersLambdaToken
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Join ['', ['arn:aws:apigateway:', !Ref AWS::Region, ':lambda:path/2015-03-31/functions/', !GetAtt SamAppPattern3Function.Arn, '/invocations']]
+
+  # Lambda Token Authorizer
+  SamAppPattern3AuthorizersLambdaToken:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: SamAppPattern3AuthorizersLambdaToken
+      Type: TOKEN
+      RestApiId: !Ref SamAppPattern3AppApi
+      IdentitySource: method.request.header.authorizationToken
+      AuthorizerUri: !Join ['', ['arn:aws:apigateway:', !Ref AWS::Region, ':lambda:path/2015-03-31/functions/', !GetAtt SamAppPattern3AuthorizerFunction.Arn, '/invocations']]
+  
+  # Lambda function
+  SamAppPattern3Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/lambda.handler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - handlers/lambda.ts
+
+  # Authorizer function
+  SamAppPattern3AuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/authorizer.handler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - handlers/authorizer.ts
+
+  # Permission to allow Lambda invocation from API Gateway
+  SamAppPattern3ppFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SamAppPattern3Function
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SamAppPattern3AppApi}/*/GET/
+
+  Deployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - SamAppPattern3MethodGet
+    Properties:
+      RestApiId: !Ref SamAppPattern3AppApi
+
+Outputs:
+  SamAppPattern3AppApiEndpoint:
+    Description: API Endpoint
+    Value: !Sub "https://${SamAppPattern3AppApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"

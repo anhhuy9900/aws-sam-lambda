@@ -43,6 +43,9 @@ Parameters:
     Type: String
   SamAppPattern1SqsQueueName: #practice-sam-app-sqs
     Type: String
+  CognitoUserPoolArn:
+    Description: THe ARN of cognito user pool
+    Type: String
 
 Resources:
   SAMAppRoleCreationFunction:
@@ -403,11 +406,26 @@ Resources:
         SAMAppRoleCreationFunction: !GetAtt SAMAppRoleCreationFunction.Arn
         SamAppPattern1SnsTopicName: !Ref SamAppPattern1SnsTopicName
         SamAppPattern1SqsQueueName: !Ref SamAppPattern1SqsQueueName
-   #################### pattern 2 #######################
+
+  #################### pattern 2 #######################
   SamAppPattern2:
     Type: AWS::Serverless::Application
     Properties:
       Location: src/pattern-2/template.yaml
+      Parameters:
+        CognitoUserPoolArn: !Ref CognitoUserPoolArn
+
+  #################### pattern 2 #######################
+  SamAppPattern3:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: src/pattern-3/template.yaml
+  
+  #################### pattern 4 #######################
+  SamAppPattern4:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: src/pattern-4/template.yaml
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
