@@ -10,4 +10,4 @@ confirm_changeset = true
 capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM"
 disable_rollback = true
 image_repositories = []
-parameter_overrides = "SAMPracticeAppBucketName=\"sam-practice-app-storage\" S3ToSNSBucketName=\"practice-sam-app-s3-to-sns\" S3ToSNSTopicName=\"practice-sam-app-s3-to-sns-topic\" DefaultEnableApp=\"True\" SamAppPattern1SnsTopicName=\"sam-app-pattern-1-sns\" SamAppPattern1SqsQueueName=\"sam-app-pattern-1-sqs\" CognitoUserPoolArn=\"arn:aws:cognito-idp:us-east-2:786326606288:userpool/us-east-2_AqDOG9DFC\""
+parameter_overrides = "SAMPracticeAppBucketName=\"sam-practice-app-storage\" S3ToSNSBucketName=\"practice-sam-app-s3-to-sns\" S3ToSNSTopicName=\"practice-sam-app-s3-to-sns-topic\" DefaultEnableApp=\"True\" SamAppPattern1SnsTopicName=\"sam-app-pattern-1-sns\" SamAppPattern1SqsQueueName=\"sam-app-pattern-1-sqs\" CognitoUserPoolArn=\"arn:aws:cognito-idp:us-east-2:786326606288:userpool/us-east-2_AqDOG9DFC\" JWTSecret=\"zozvr7NsMc59TazF3m7WaH22ksvnnzD7\""

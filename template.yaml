@@ -46,6 +46,9 @@ Parameters:
   CognitoUserPoolArn:
     Description: THe ARN of cognito user pool
     Type: String
+  JWTSecret:
+    Description: The secret of authorizer
+    Type: String
 
 Resources:
   SAMAppRoleCreationFunction:
@@ -420,6 +423,8 @@ Resources:
     Type: AWS::Serverless::Application
     Properties:
       Location: src/pattern-3/template.yaml
+      Parameters:
+        JWTSecret: !Ref JWTSecret
   
   #################### pattern 4 #######################
   SamAppPattern4:

@@ -17,6 +17,7 @@
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
     "Accept-Encoding": "gzip, deflate, sdch",
     "Accept-Language": "en-US,en;q=0.8",
+    "Authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTc5NTQ5NjIsImRhdGEiOnsibmFtZSI6InRlc3QiLCJleHBpcmVkVGltZSI6MTY5Nzk1NDk2Mn0sImlhdCI6MTY5Nzk1MTM2Mn0.lVJO5Kj0kYbDIDlvihGOP16PNna0F6goP8ly1GLEjes11",
     "Cache-Control": "max-age=0",
     "CloudFront-Forwarded-Proto": "https",
     "CloudFront-Is-Desktop-Viewer": "true",

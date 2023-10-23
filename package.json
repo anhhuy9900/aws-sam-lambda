@@ -8,7 +8,9 @@
   "license": "MIT",
   "dependencies": {
     "@types/aws-sdk": "^2.7.0",
-    "aws-sdk": "^2.1450.0"
+    "@types/jsonwebtoken": "^9.0.4",
+    "aws-sdk": "^2.1450.0",
+    "jsonwebtoken": "^9.0.2"
   },
   "scripts": {
     "build": "node_modules/typescript/bin/tsc",
