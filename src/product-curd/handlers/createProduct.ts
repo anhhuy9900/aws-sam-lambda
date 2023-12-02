@@ -1,6 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { faker } from '@faker-js/faker';
-import { ResponseUtil } from '../utils/response';
+import { ResponseUtil } from '../../utils/response';
 
 /**
  *
@@ -11,36 +10,22 @@ import { ResponseUtil } from '../utils/response';
  * @returns {Object} object - API Gateway Lambda Proxy Output Format
  *
  */
-
-const productData = [{
-    id: 1,
-    name: `Product 1`, 
-    description: `Product description 1`, 
-    status: faker.datatype.boolean()
-}];
+  
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     console.log("🚀 ------------------------------------------------------🚀");
-    console.log("🚀 ~ file: updateProduct.ts:16 ~ handler ~ event:", JSON.stringify(event.body));
+    console.log("🚀 ~ file: createProduct.ts:16 ~ handler ~ event:", JSON.stringify(event.body));
     console.log("🚀 ------------------------------------------------------🚀");
 
     try {
-        const id: any = event?.pathParameters?.id || 0;
-        const product = productData.find((p: any) => p.id === parseInt(id))
-        const nProduct = {
-            ...product,
-            ...(event?.body) as unknown as object
-        };
 
-        if (!product) {
-            return ResponseUtil("No Data");
-        }
+        const product = JSON.parse((event?.body) as any || {});
 
         return ResponseUtil({
-            data: nProduct
+            product
         });
     } catch (err) {
-        console.error('updateProduct - ERROR: ', err);
+        console.error('createProduct- ERROR: ', JSON.stringify(err));
         return ResponseUtil('Some Error', 500);
     }
 };

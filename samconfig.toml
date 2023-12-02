@@ -2,12 +2,13 @@ version = 0.1
 [default]
 [default.deploy]
 [default.deploy.parameters]
-stack_name = "practice-aws-sam-lambda-app-v1"
+profile = "default"
+stack_name = "sam-app"
 s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1as74l9r4xho1"
-s3_prefix = "practice-aws-sam-lambda-app-v1"
+s3_prefix = "sam-app"
 region = "us-east-2"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM"
 disable_rollback = true
 image_repositories = []
-parameter_overrides = "SAMPracticeAppBucketName=\"sam-practice-app-storage\" S3ToSNSBucketName=\"practice-sam-app-s3-to-sns\" S3ToSNSTopicName=\"practice-sam-app-s3-to-sns-topic\" DefaultEnableApp=\"True\" SamAppPattern1SnsTopicName=\"sam-app-pattern-1-sns\" SamAppPattern1SqsQueueName=\"sam-app-pattern-1-sqs\" CognitoUserPoolArn=\"arn:aws:cognito-idp:us-east-2:786326606288:userpool/us-east-2_AqDOG9DFC\" JWTSecret=\"zozvr7NsMc59TazF3m7WaH22ksvnnzD7\""
+parameter_overrides = "SamAppBucketName=\"sam-app-storage-v1\" S3ToSnsBucketName=\"sam-app-s3-to-sns-v1\" S3ToSnsTopicName=\"sam-app-s3-to-sns-topic\" DefaultEnableApp=\"True\" IntegrationServicesSnsTopicName=\"sam-app-apigw-lambda-sqs-sns-integration-sns\" IntegrationServicesSqsQueueName=\"sam-app-apigw-lambda-sqs-sns-integration-sqs\" CognitoUserPoolArn=\"arn:aws:cognito-idp:us-east-2:786326606288:userpool/us-east-2_AqDOG9DFC\" JWTSecret=\"zozvr7NsMc59TazF3m7WaH22ksvnnzD7\" SubnetId=\"subnet-a89b32c3\" SecurityGroupId=\"sg-06220287206e82d24\" VpcId=\"vpc-fb850490\""

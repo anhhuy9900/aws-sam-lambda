@@ -1,9 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  sam-lambda-app-pattern-2
+  sam-app-api-gateway-lambda-sqs-sns-integration
 
-  This is pattern 1 used to show case integration between API gateway, SNS, SQS, Lambda
+  This is pattern used to show case integration between API gateway, SNS, SQS, Lambda
 
 Globals:
   Function:
@@ -15,20 +15,19 @@ Globals:
       - x86_64 
 
 Parameters:
-  SamAppPattern1SnsTopicName: #sam-app-pattern-1-sns
+  IntegrationServicesSnsTopicName: #sam-app-apigw-lambda-sqs-sns-integration-sns
     Type: String
-  SamAppPattern1SqsQueueName: #sam-app-pattern-1-sqs
+  IntegrationServicesSqsQueueName: #sam-app-apigw-lambda-sqs-sns-integration-sqs
     Type: String
-  SAMAppRoleCreationFunction:
+  RolesCreation:
     Type: String
 
 Resources:
-  #################### pattern 1 #######################
-  SamAppPattern1ApiFunction:
+  ApiFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: handlers/lambda-api-gateway.handler
-      # Role: !GetAtt SAMAppRoleCreationFunction.Arn
+      # Role: !GetAtt RolesCreation.Arn
       Environment:
         Variables:
           SNS_TOPIC_ARN: !Ref SamAppSnsTopic  # Using !Ref
@@ -42,19 +41,20 @@ Resources:
         Api:
           Type: Api
           Properties:
-            Path: /pattern-1
+            Path: /apigw-lambda-sqs-sns-integration
             Method: POST
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
         EntryPoints: 
           - handlers/lambda-api-gateway.ts
-  SamAppPattern1SqsReceiver:
+
+  SqsReceiver:
     Type: AWS::Serverless::Function
     Properties:
       Timeout: 30
       Handler: handlers/sqsReceiver.handler
-      Role: !Ref SAMAppRoleCreationFunction
+      Role: !Ref RolesCreation
       Events:
         SamAppSQSQueueEvent:
           Type: SQS
@@ -67,11 +67,12 @@ Resources:
       BuildProperties:
         EntryPoints: 
           - handlers/sqsReceiver.ts
-  SamAppPattern1SnsToLambdaFunction:
+
+  SnsToLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: handlers/sns-to-lambda.handler
-      Role: !Ref SAMAppRoleCreationFunction
+      Role: !Ref RolesCreation
       Events:
         SamAppSNSTopicEvent:
           Type: SNS
@@ -82,26 +83,31 @@ Resources:
       BuildProperties:
         EntryPoints: 
           - handlers/sns-to-lambda.ts
+
   SamAppSnsToLambda:
     Type: AWS::SNS::Subscription
     Properties:
       Protocol: lambda
-      Endpoint: !GetAtt SamAppPattern1SnsToLambdaFunction.Arn
+      Endpoint: !GetAtt SnsToLambdaFunction.Arn
       TopicArn: !Ref SamAppSnsTopic
+
   SamAppSnsToSqs:
     Type: AWS::SNS::Subscription
     Properties:
       Protocol: sqs
       Endpoint: !GetAtt SamAppSQSQueue.Arn
       TopicArn: !Ref SamAppSnsTopic
+
   SamAppSnsTopic:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: !Ref SamAppPattern1SnsTopicName
+      TopicName: !Ref IntegrationServicesSnsTopicName
+
   SamAppSQSQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Ref SamAppPattern1SqsQueueName
+      QueueName: !Ref IntegrationServicesSqsQueueName
+  
   SamAppSQSQueuePolicy:
     Type: AWS::SQS::QueuePolicy
     Properties:

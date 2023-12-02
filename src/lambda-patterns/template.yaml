@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-app-pattern-lambda
+
+  Practice with lambda patterns
+
+Globals:
+  Function:
+    Timeout: 180
+    Tracing: Active
+    Runtime: nodejs16.x
+    MemorySize: 256
+    Architectures:
+      - x86_64 
+
+Parameters:
+  SamAppBucketName:
+    Type: String
+    Description: The SamAppBucketName
+
+Resources:
+   # HelloFunction:
+  #   Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  #   Properties:
+  #     Handler: handlers/hello.handler
+  #     Role: !GetAtt SAMAppRoleCreationFunction.Arn
+  #     Events:
+  #       Hello:
+  #         Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+  #         Properties:
+  #           Path: /hello
+  #           Method: get
+  #   Metadata: # Manage esbuild properties
+  #     BuildMethod: esbuild
+  #     BuildProperties:
+  #       Minify: true
+  #       Target: "es2020"
+  #       Sourcemap: true
+  #       EntryPoints: 
+  #         - handlers/hello.ts
+
+  ####### Lambda timeout #######
+  LambdaTimeoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 3
+      Handler: handlers/lambdaTimeout.handler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/lambdaTimeout.ts
+
+  ####### Lambda timeout #######
+  LambdaEnvVarFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/lambdaEnvVar.handler
+      Environment:
+        Variables:
+          EXTRA_PORT: 9000
+          EXTRA_HOST: localhost
+          EXTRA_LINK: test.com
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/lambdaEnvVar.ts
+
+  S3UploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 30
+      Handler: handlers/handleS3Upload.handler
+      Events:
+        S3UploadEvent:
+          Type: S3
+          Properties:
+            Bucket: !Ref SamAppBucket
+            Events: s3:ObjectCreated:*
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/handleS3Upload.ts
+
+  #################### S3 #######################
+  SamAppBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref SamAppBucketName

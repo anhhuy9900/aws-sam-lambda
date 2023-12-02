@@ -1,0 +1,109 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-app-elasticache-lambda-s3
+
+  The pattern used to create a feature for lambda interact  with redis elasticache and S3
+
+Globals:
+  Function:
+    Timeout: 180
+    Tracing: Active
+    Runtime: nodejs16.x
+    MemorySize: 256
+    Architectures:
+      - x86_64
+
+Parameters:
+  SubnetId:
+    Type: String
+    Description: Provide the SubnetId which you used while creating Redis cluster
+    AllowedPattern: .+
+  SecurityGroupId:
+    Type: String
+    Description: Provide the SecurityGroupId which you used while creating Redis cluster
+    AllowedPattern: .+
+  CacheNodeType:
+    Description: 'The compute and memory capacity of the nodes in the node group (shard).'
+    Type: 'String'
+    Default: 'cache.t2.micro'
+  EngineVersion:
+    Description: 'Redis version'
+    Type: String
+    AllowedValues: ['7.0', '6.2', '6.0', '5.0.6', '5.0.5', '5.0.4', '5.0.3', '5.0.0', '4.0.10'] # aws elasticache describe-cache-engine-versions --engine redis --query "CacheEngineVersions[].EngineVersion"
+    Default: '5.0.4'
+  VpcId:
+    Type: String
+    Description: The VPC you want to run your ElastiCache cluster in
+
+Resources:
+  # Lambda function
+  HandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/lambda.handler
+      Description: handler for elastic lambda
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /
+            Method: GET 
+      Tags:
+        Stack: !Sub "${AWS::StackName}-Function"
+      Environment:
+        Variables:
+          RedisUrl: !GetAtt RedisCacheCluster.RedisEndpoint.Address
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - handlers/lambda.ts
+
+  # CacheParameterGroupName:
+  #   Type: 'AWS::ElastiCache::ParameterGroup'
+  #   Properties:
+  #     CacheParameterGroupFamily: !FindInMap [EngineVersionMap, !Ref EngineVersion, CacheParameterGroupFamily]
+  #     Description: !Ref 'AWS::StackName'
+  #     Properties: {}
+  CacheSubnetGroupName:
+    Type: 'AWS::ElastiCache::SubnetGroup'
+    Properties:
+      Description: !Ref 'AWS::StackName'
+      SubnetIds: 
+        - !Ref SubnetId
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow redis
+      VpcId: !Ref VpcId
+
+  RedisCacheCluster:
+    # DeletionPolicy: Snapshot # Snapshot not supported by memcached (only Redis)
+    # UpdateReplacePolicy: Snapshot # Snapshot not supported by memcached (only Redis)
+    Type: 'AWS::ElastiCache::CacheCluster'
+    Properties:
+      # AutoMinorVersionUpgrade: true
+      # AZMode: !If [HasSingleCacheNode, 'single-az', 'cross-az']
+      CacheNodeType: !Ref CacheNodeType
+      #cCacheParameterGroupName: default.redis5.0.cluster.on
+      # CacheSubnetGroupName: !Ref CacheSubnetGroupName
+      Engine: redis
+      EngineVersion: !Ref EngineVersion
+      # NotificationTopicArn: !If [HasAlertTopic, {'Fn::ImportValue': !Sub '${ParentAlertStack}-TopicARN'}, !Ref 'AWS::NoValue']
+      NumCacheNodes: 1
+      # PreferredAvailabilityZones: !Split [',', !GetAtt 'PreferredAvailabilityZonesSelector.PreferredAvailabilityZones']
+      # PreferredMaintenanceWindow: 'sat:07:00-sat:08:00'
+      VpcSecurityGroupIds:
+        - !Ref SecurityGroup
+
+Outputs:
+  StackName:
+    Description: 'Stack name.'
+    Value: !Sub '${AWS::StackName}'
+  SecurityGroupId:
+    Description: 'The security group used to manage access to Elasticache Redis.'
+    Value: !Ref SecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupId'

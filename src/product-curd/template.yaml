@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-app-pattern-product-curd
+
+  This is pattern for product CURD 
+
+Globals:
+  Function:
+    Timeout: 180
+    Tracing: Active
+    Runtime: nodejs16.x
+    MemorySize: 256
+    Architectures:
+      - x86_64 
+
+Resources:
+  GetProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/getProducts.handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /products
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/getProducts.ts
+
+  CreateProductFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      Handler: handlers/createProduct.handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /product
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/createProduct.ts
+
+  UpdateProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/updateProduct.handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /product/{id}
+            Method: PUT
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/updateProduct.ts
+
+  DeleteProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/deleteProduct.handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /product/{id}
+            Method: DELETE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/deleteProduct.ts
+  
+  HandleProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/handleProduct.handler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/handleProduct.ts
+
+  TriggerCreateProductFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/triggerCreateProduct.handler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/triggerCreateProduct.ts

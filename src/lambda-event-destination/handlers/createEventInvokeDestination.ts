@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { ResponseUtil } from '../utils/response';
+import { ResponseUtil } from '../../utils/response';
 
 /**
  *
@@ -14,7 +14,7 @@ import { ResponseUtil } from '../utils/response';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     console.log("🚀 ------------------------------------------------------🚀");
-    console.log("🚀 ~ file: createEventInvokeProduct ~ handler ~ event:", JSON.stringify(event.body));
+    console.log("🚀 ~ file: createEventInvokeDestination ~ handler ~ event:", JSON.stringify(event.body));
     console.log("🚀 ------------------------------------------------------🚀");
 
     try {
@@ -27,7 +27,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
         return ResponseUtil(product);
     } catch (err) {
-        console.error('createEventInvokeProduct - ERROR: ', JSON.stringify(err));
+        console.error('createEventInvokeDestination - ERROR: ', JSON.stringify(err));
         throw new Error('The lambda has error');
     }
 };

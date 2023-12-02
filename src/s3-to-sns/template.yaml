@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-app-pattern-s3-to-sns
+
+  This is pattern for S3 trigger to SNS
+
+Globals:
+  Function:
+    Timeout: 180
+    Tracing: Active
+    Runtime: nodejs16.x
+    MemorySize: 256
+    Architectures:
+      - x86_64 
+
+Parameters:
+  S3ToSnsBucketName: #sam-app-s3-to-sns-v1
+    Type: String
+  S3ToSnsTopicName: #sam-app-s3-to-sns-topic
+    Type: String
+
+Resources:
+  S3ToSNSHandleEvents:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/handleEvents.handler
+      Events:
+        Topic:
+          Type: SNS
+          Properties:
+            Topic: !Ref S3ToSnsEvents
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/handleEvents.ts
+
+  S3ToSNSBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3ToSnsBucketName
+      NotificationConfiguration:
+        TopicConfigurations:
+          - Topic: !Ref S3ToSnsEvents
+            Event: s3:ObjectCreated:*
+          - Topic: !Ref S3ToSnsEvents
+            Event: s3:ObjectRemoved:*
+    DependsOn:
+      - S3BucketToSNSPermission
+
+  S3ToSnsEvents:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Ref S3ToSnsTopicName
+
+  S3BucketToSNSPermission:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref S3ToSnsEvents
+      PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: s3.amazonaws.com
+              Action: sns:Publish
+              Resource: !Ref S3ToSnsEvents
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Sub arn:${AWS::Partition}:s3:::${S3ToSnsBucketName}
+  
+  S3ToSNSLambdaPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref S3ToSNSHandleEvents
+      Principal: sns.amazonaws.com

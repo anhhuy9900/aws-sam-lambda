@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  sam-lambda-app-pattern-4
+  sam-app-pattern-apigw-lambda-observability
 
   This is pattern used to create an API with metrics, alerts, traces, logs, and dashboard
 
@@ -16,7 +16,7 @@ Globals:
 
 Resources:
   # Lambda function
-  SamAppPattern4Function:
+  ApiHandlerFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: handlers/lambda.handler
@@ -28,7 +28,7 @@ Resources:
         AllEvents:
           Type: HttpApi
           Properties:
-            ApiId: !Ref SamAppPattern4HttpApi
+            ApiId: !Ref HttpApi
             Path: /
             Method: GET 
       Tags:
@@ -40,32 +40,32 @@ Resources:
           - handlers/lambda.ts
 
   # Override default Lambda logs group to add retention period
-  SamAppPattern4FunctionLogGroup:
+  FunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${SamAppPattern4Function}"
+      LogGroupName: !Sub "/aws/lambda/${ApiHandlerFunction}"
       RetentionInDays: 30
 
   # API Gateway endpoint
-  SamAppPattern4HttpApi:
+  HttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
       FailOnWarnings: True
       AccessLogSettings:
-        DestinationArn: !GetAtt SamAppPattern4ApiAccessLogs.Arn
+        DestinationArn: !GetAtt ApiAccessLogs.Arn
         Format: '{ "requestId":"$context.requestId", "ip": "$context.identity.sourceIp", "requestTime":"$context.requestTime", "httpMethod":"$context.httpMethod","routeKey":"$context.routeKey", "status":"$context.status","protocol":"$context.protocol", "integrationStatus": $context.integrationStatus, "integrationLatency": $context.integrationLatency, "responseLength":"$context.responseLength" }'
       Tags:
         Name: !Sub "${AWS::StackName}-API"
         Stack: !Sub "${AWS::StackName}"
 
   # API Gateway access logs group with retention period
-  SamAppPattern4ApiAccessLogs:
+  ApiAccessLogs:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/SamAppPattern4-ApiAccessLogs"
+      LogGroupName: !Sub "/${AWS::StackName}/apigw-lambda-observability-ApiAccessLogs"
       RetentionInDays: 30
 
 Outputs:
-  SamAppPattern4AppApiEndpoint:
+  AppApiEndpoint:
     Description: API Endpoint
-    Value: !Sub "https://${SamAppPattern4HttpApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"

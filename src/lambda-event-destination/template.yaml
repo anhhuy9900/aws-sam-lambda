@@ -1,0 +1,109 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-app-pattern-lambda-destination
+
+  Practice with lambda destination
+
+Globals:
+  Function:
+    Timeout: 180
+    Tracing: Active
+    Runtime: nodejs16.x
+    MemorySize: 256
+    Architectures:
+      - x86_64 
+
+Resources:
+  EventInvokeDestinationFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      Handler: handlers/createEventInvokeDestination.handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /product/create-event-invoke
+            Method: POST
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref HandleSuccessFunction
+        - SQSPollerPolicy:
+            QueueName:
+              !GetAtt SQSEventDestinationQueue.QueueName
+      # Role: !GetAtt PracticeSAMLambdaRole.Arn
+      EventInvokeConfig:
+        DestinationConfig:
+          OnSuccess:
+            Type: Lambda
+            Destination: !GetAtt HandleSuccessFunction.Arn  # Arn of a Lambda function declared in the template file.
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt SQSEventDestinationQueue.Arn  # Arn of an SNS topic declared in the template file
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/createEventInvokeDestination.ts
+
+  # EventInvokeConfig:
+  #   Type: AWS::Lambda::EventInvokeConfig
+  #   Properties:
+  #     FunctionName: !Ref EventInvokeDestinationFunction
+  #     Qualifier: "$LATEST"
+  #     MaximumEventAgeInSeconds: 60
+  #     MaximumRetryAttempts: 0
+  #     DestinationConfig:
+  #       # OnSuccess:
+  #       #   Destination: arn:aws:sqs:us-east-2:786326606288:sqs-practice-sam-lambda-product  # Arn of an SNS topic declared in the template file
+  #       OnFailure:
+  #         Destination: !GetAtt HandleSuccessFunction.Arn  # Arn of a Lambda function declared in the template file. 
+
+  HandleSuccessFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers/handleSuccess.handler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/handleSuccess.ts
+
+  
+  HandleSQSReceiver:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 30
+      Handler: handlers/handleSqsReceiver.handler
+      Events:
+        SQSEventDestinationQueue:
+          Type: SQS
+          Properties:
+            Enabled: true
+            Queue: !GetAtt SQSEventDestinationQueue.Arn
+            BatchSize: 10
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: 
+          - handlers/handleSqsReceiver.ts
+  
+  #################### SQS #######################
+  # Allow Lambda to send messages to SQS
+  LambdaToQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: SQS:SendMessage
+          Resource: !GetAtt SQSEventDestinationQueue.Arn
+      Queues:
+        - !Ref SQSEventDestinationQueue
+
+  SQSEventDestinationQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: practice-sam-sqs-lambda-destination

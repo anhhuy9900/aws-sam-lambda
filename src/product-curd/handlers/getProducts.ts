@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { faker } from '@faker-js/faker';
-import { ResponseUtil } from '../utils/response';
+import { ResponseUtil } from '../../utils/response';
 
 /**
  *
